@@ -43,6 +43,6 @@ jobs:
         with:
           # Especifica qué archivos deben ser incluidos en el commit
           files: gasolineras.geojson
-          commit_message: "🤖 Actualización automática de precios de Minetur"
+          commit_message: "Actualización automática de precios"
           # Permite que la acción se ejecute en el horario programado
           commit_author: GitHub Actions Bot <41898282+github-actions[bot]@users.noreply.github.com>
