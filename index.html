@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gasolineras en España - Precios en Vivo</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/SJPMeIerZz0a4CyYh="
+          crossorigin=""/>
+
+    <style>
+        /* Estilos básicos para el mapa y el contenedor de selección */
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #mapid { height: 100vh; width: 100%; z-index: 1; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #carburante-select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            min-width: 200px;
+        }
+
+        /* Estilo para los marcadores de precio */
+        .price-marker {
+            background-color: #007bff; /* Azul de Repsol, por ejemplo */
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            padding: 2px 5px;
+            text-align: center;
+            line-height: 25px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
+            border: 2px solid white;
+            opacity: 0.9;
+            transition: all 0.1s;
+        }
+        .price-marker:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        .price-marker div {
+            padding: 0 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <label for="carburante-select">⛽ Mostrar precio de:</label>
+        <select id="carburante-select">
+            <option value="Precio_95E5">Gasolina 95 E5</option>
+            <option value="Precio_GasoilA">Gasóleo A</option>
+            <option value="Precio_98E5">Gasolina 98 E5</option>
+            <option value="Precio_GasoilPremium">Gasóleo Premium</option>
+            <option value="Precio_GasoilB">Gasóleo B</option>
+            </select>
+    </div>
+
+    <div id="mapid"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20n6sB7V2i5u0n5W6nC6E72B702F9l3A/X6QJ2j7912o="
+            crossorigin=""></script>
+
+    <script>
+        // Variables globales para el mapa y los datos
+        let geoJsonData = null;
+        let gasolinerasLayer = null;
+        
+        // 1. Inicializar el mapa
+        const map = L.map('mapid').setView([40.416775, -3.703790], 6); // Centrado en Madrid con zoom 6
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'
+        }).addTo(map);
+
+        // 2. Función para crear el marcador de precio personalizado
+        function createPriceMarker(feature, latlng, selectedPriceKey) {
+            const precio = feature.properties[selectedPriceKey];
+            
+            // Si no hay precio para este carburante, lo mostramos con un estilo diferente
+            let displayPrice = 'N/D';
+            let markerClass = 'price-marker';
+
+            if (precio !== null && precio !== undefined) {
+                // Formatear el precio a dos decimales
+                displayPrice = precio.toFixed(3) + ' €';
+                // Puedes añadir lógica para colorear según el precio (ej. rojo para caro, verde para barato)
+            } else {
+                displayPrice = 'N/D';
+                markerClass += ' no-data'; // Estilo para sin datos
+            }
+
+            // Crear el ícono DIV con el precio
+            const htmlIcon = L.divIcon({
+                className: markerClass,
+                html: `<div>${displayPrice}</div>`,
+                iconSize: [80, 25],
+                iconAnchor: [40, 12]
+            });
+
+            const marker = L.marker(latlng, { icon: htmlIcon });
+
+            // Construir el pop-up completo (desplegable al pinchar)
+            let popupContent = `
+                <h3>${feature.properties.Rotulo}</h3>
+                <strong>Dirección:</strong> ${feature.properties.Direccion}<br><hr>
+            `;
+            
+            // Mapeo inverso para mostrar nombres amigables en el pop-up
+            const readableNames = {
+                "Precio_95E5": "Gasolina 95 E5",
+                "Precio_GasoilA": "Gasóleo A",
+                "Precio_98E5": "Gasolina 98 E5",
+                "Precio_GasoilPremium": "Gasóleo Premium",
+                "Precio_GasoilB": "Gasóleo B",
+            };
+            
+            // Recorrer todos los precios para el pop-up
+            for (const key in readableNames) {
+                const p = feature.properties[key];
+                const priceText = (p !== null && p !== undefined) ? `${p.toFixed(3)} €/L` : 'No disponible';
+                popupContent += `<strong>${readableNames[key]}:</strong> ${priceText}<br>`;
+            }
+
+            marker.bindPopup(popupContent);
+            
+            return marker;
+        }
+
+        // 3. Función principal para actualizar el mapa con el carburante seleccionado
+        function updateMap(selectedPriceKey) {
+            // Quitar la capa anterior
+            if (gasolinerasLayer) {
+                map.removeLayer(gasolinerasLayer);
+            }
+            
+            // Crear y añadir la nueva capa
+            if (geoJsonData) {
+                gasolinerasLayer = L.geoJSON(geoJsonData, {
+                    pointToLayer: function (feature, latlng) {
+                        return createPriceMarker(feature, latlng, selectedPriceKey);
+                    }
+                }).addTo(map);
+            }
+        }
+
+        // 4. Carga inicial de datos GeoJSON
+        fetch('gasolineras.geojson')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}. ¿Has ejecutado 'data_processor.py'?`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                geoJsonData = data;
+                // Muestra el mapa con la opción por defecto (Gasolina 95 E5)
+                updateMap(document.getElementById('carburante-select').value);
+            })
+            .catch(error => {
+                console.error('Error al cargar los datos:', error);
+                alert('No se pudieron cargar los datos de las gasolineras. Asegúrate de ejecutar el script Python primero.');
+            });
+
+        // 5. Escuchar el cambio en el desplegable
+        document.getElementById('carburante-select').addEventListener('change', function(e) {
+            const selectedKey = e.target.value;
+            updateMap(selectedKey);
+        });
+    </script>
+</body>
+</html>

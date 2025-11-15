@@ -1,0 +1,48 @@
+name: Actualización Diaria de Precios de Gasolina
+
+# Define cuándo se ejecutará este flujo de trabajo
+on:
+  # 1. Programación diaria a las 04:00 AM (UTC)
+  schedule:
+    # La sintaxis cron es 'minuto hora día_del_mes mes día_de_la_semana'
+    - cron: '0 4 * * *'
+  
+  # 2. Permite la ejecución manual (opcional)
+  workflow_dispatch:
+
+# Define los trabajos (jobs) que se ejecutarán
+jobs:
+  update-data:
+    # Se ejecutará en la última versión de Ubuntu
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Paso 1: Descargar el código del repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Paso 2: Configurar el entorno de Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      # Paso 3: Instalar las dependencias de Python (solo 'requests' para tu script)
+      - name: Install dependencies
+        run: pip install requests
+      
+      # Paso 4: Ejecutar tu script de procesamiento de datos
+      - name: Run data processing script
+        # Asegúrate de que esta ruta coincida con la ubicación de tu archivo Python
+        run: python data_processor.py
+      
+      # Paso 5: Commit y Push del archivo GeoJSON actualizado
+      # Esta acción hace el commit automático si hay cambios en el archivo 'gasolineras.geojson'
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          # Especifica qué archivos deben ser incluidos en el commit
+          files: gasolineras.geojson
+          commit_message: "🤖 Actualización automática de precios de Minetur"
+          # Permite que la acción se ejecute en el horario programado
+          commit_author: GitHub Actions Bot <41898282+github-actions[bot]@users.noreply.github.com>
