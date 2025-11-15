@@ -116,7 +116,7 @@
         }
 
 
-        // 3. Función para crear el marcador (ACTUALIZADA con Filtro por Zoom)
+        // 3. Función para crear el marcador (CORREGIDA con Filtro por Zoom)
         function createPriceMarker(feature, latlng, selectedPriceKey) {
             const properties = feature.properties;
             const precio = properties[selectedPriceKey];
@@ -125,14 +125,10 @@
             let popupContent = getPopupContent(properties);
 
 
-            // Si el zoom es bajo, o si el precio es N/D, usamos un marcador por defecto
-            if (map.getZoom() < MIN_ZOOM_LEVEL_FOR_PRICE || precio === null || precio === undefined) {
+            // Condición para usar el cartel de precio: Zoom ALTO (>= 12) Y que el precio exista
+            if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PRICE && precio !== null && precio !== undefined) {
                 
-                // Usar marcador por defecto de Leaflet
-                marker = L.marker(latlng);
-
-            } else {
-                // Si el zoom es ALTO y hay precio, mostramos el cartel de precio
+                // --- 🟢 Opción: Cartel de Precio visible ---
                 
                 let displayPrice = precio.toFixed(3) + ' €';
                 
@@ -144,8 +140,16 @@
                 });
 
                 marker = L.marker(latlng, { icon: htmlIcon });
+
+            } else {
+                // --- 🔵 Opción: Marcador Básico de Leaflet ---
+                // Se usa si el zoom es bajo, o si no hay precio para el carburante seleccionado.
+                
+                // Crea un marcador estándar. El clustering lo agrupará.
+                marker = L.marker(latlng);
             }
 
+            // El pop-up es el mismo, independientemente del ícono
             marker.bindPopup(popupContent);
             return marker;
         }
@@ -159,9 +163,11 @@
             if (geoJsonData) {
                 L.geoJSON(geoJsonData, {
                     pointToLayer: function (feature, latlng) {
+                        // Llama a la función que decide si mostrar precio o marcador simple
                         return createPriceMarker(feature, latlng, selectedPriceKey);
                     }
                 }).eachLayer(function (layer) {
+                    // Añadir cada marcador a la capa de clústeres
                     markers.addLayer(layer);
                 });
 
@@ -199,6 +205,7 @@
         });
 
         // ¡NUEVO! Escucha el evento de zoom para re-dibujar los marcadores
+        // Esto es esencial para el filtro por zoom, ya que recalcula los marcadores al cambiar el zoom.
         map.on('zoomend', function () {
             if (geoJsonData) {
                 const selectedKey = document.getElementById('carburante-select').value;
