@@ -57,6 +57,12 @@
         .price-marker div {
             padding: 0 5px;
         }
+        
+        /* Nuevo estilo para N/D: lo hacemos más discreto */
+        .price-marker.no-data {
+            background-color: #777; /* Gris */
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +88,8 @@
         // Variables globales
         let geoJsonData = null;
         let markers = L.markerClusterGroup(); 
-        const MIN_ZOOM_LEVEL_FOR_PRICE = 12; // Define el zoom mínimo para mostrar el cartel de precio
+        // El zoom lo usamos ahora solo para decidir si mostrar el cartel o el marcador simple.
+        const MIN_ZOOM_LEVEL_FOR_PRICE = 12; 
         
         // 1. Inicializar el mapa
         const map = L.map('mapid').setView([40.416775, -3.703790], 6);
@@ -92,7 +99,7 @@
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'
         }).addTo(map);
 
-        // 2. Función para generar el contenido del pop-up (extraída para simplificar)
+        // 2. Función para generar el contenido del pop-up
         function getPopupContent(properties) {
              let popupContent = `
                 <h3>${properties.Rotulo}</h3>
@@ -109,31 +116,40 @@
             
             for (const key in readableNames) {
                 const p = properties[key];
-                const priceText = (p !== null && p !== undefined) ? `${p.toFixed(3)} €/L` : 'No disponible';
+                // Mostramos "N/D" en el pop-up si el precio es nulo
+                const priceText = (p !== null && p !== undefined) ? `${p.toFixed(3)} €/L` : 'N/D';
                 popupContent += `<strong>${readableNames[key]}:</strong> ${priceText}<br>`;
             }
             return popupContent;
         }
 
 
-        // 3. Función para crear el marcador (CORREGIDA con Filtro por Zoom)
+        // 3. Función para crear el marcador (AJUSTADA para N/D)
         function createPriceMarker(feature, latlng, selectedPriceKey) {
             const properties = feature.properties;
-            const precio = properties[selectedPriceKey];
+            const precio = properties[selectedPriceKey]; 
             
             let marker;
             let popupContent = getPopupContent(properties);
 
 
-            // Condición para usar el cartel de precio: Zoom ALTO (>= 12) Y que el precio exista
-            if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PRICE && precio !== null && precio !== undefined) {
+            // Condición para mostrar el cartel de precio. Siempre mostramos algo si el zoom es alto.
+            if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PRICE) {
                 
-                // --- 🟢 Opción: Cartel de Precio visible ---
+                // Determinamos el texto y la clase CSS
+                let displayPrice;
+                let markerClass = 'price-marker';
                 
-                let displayPrice = precio.toFixed(3) + ' €';
+                if (precio !== null && precio !== undefined) {
+                    displayPrice = precio.toFixed(3) + ' €';
+                } else {
+                    displayPrice = 'N/D';
+                    markerClass += ' no-data'; // Añadir clase para estilo gris
+                }
                 
+                // Creamos el ícono DIV con el texto (precio o N/D)
                 const htmlIcon = L.divIcon({
-                    className: 'price-marker',
+                    className: markerClass,
                     html: `<div>${displayPrice}</div>`,
                     iconSize: [80, 25],
                     iconAnchor: [40, 12]
@@ -142,28 +158,24 @@
                 marker = L.marker(latlng, { icon: htmlIcon });
 
             } else {
-                // --- 🔵 Opción: Marcador Básico de Leaflet ---
-                // Se usa si el zoom es bajo, o si no hay precio para el carburante seleccionado.
-                
-                // Crea un marcador estándar. El clustering lo agrupará.
+                // Si el zoom es bajo, usamos marcador básico para mejor rendimiento y limpieza
                 marker = L.marker(latlng);
             }
 
-            // El pop-up es el mismo, independientemente del ícono
             marker.bindPopup(popupContent);
             return marker;
         }
 
-        // 4. Función principal para actualizar el mapa (con Clustering)
+        // 4. Función principal para actualizar el mapa (REVERTIDA la eliminación del filtro)
         function updateMap(selectedPriceKey) {
             // 1. Limpiar la capa de clústeres
             markers.clearLayers();
             
-            // 2. Procesar los datos y añadir a la capa de clústeres
+            // 2. Procesar TODOS los datos (SIN FILTRO) y añadir a la capa de clústeres
             if (geoJsonData) {
                 L.geoJSON(geoJsonData, {
+                    // Ahora procesamos TODAS las gasolineras, incluso si su precio es null
                     pointToLayer: function (feature, latlng) {
-                        // Llama a la función que decide si mostrar precio o marcador simple
                         return createPriceMarker(feature, latlng, selectedPriceKey);
                     }
                 }).eachLayer(function (layer) {
@@ -178,7 +190,7 @@
             }
         }
 
-        // 5. Carga inicial de datos GeoJSON
+        // 5. Carga inicial de datos GeoJSON (SIN CAMBIOS)
         fetch('gasolineras.geojson')
             .then(response => {
                 if (!response.ok) {
@@ -188,7 +200,6 @@
             })
             .then(data => {
                 geoJsonData = data;
-                // Muestra el mapa con la opción por defecto
                 updateMap(document.getElementById('carburante-select').value);
             })
             .catch(error => {
@@ -196,16 +207,13 @@
                 alert('No se pudieron cargar los datos de las gasolineras. Asegúrate de ejecutar el script Python primero.');
             });
 
-        // 6. Escuchar eventos
+        // 6. Escuchar eventos (SIN CAMBIOS)
         
-        // Cambio en el desplegable de carburante
         document.getElementById('carburante-select').addEventListener('change', function(e) {
             const selectedKey = e.target.value;
             updateMap(selectedKey);
         });
 
-        // ¡NUEVO! Escucha el evento de zoom para re-dibujar los marcadores
-        // Esto es esencial para el filtro por zoom, ya que recalcula los marcadores al cambiar el zoom.
         map.on('zoomend', function () {
             if (geoJsonData) {
                 const selectedKey = document.getElementById('carburante-select').value;
