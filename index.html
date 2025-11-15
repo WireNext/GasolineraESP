@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gasolineras en España - Precios en Vivo</title>
+    <title>Gasolineras en España - Precios Dinámicos</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 
@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
 
     <style>
-        /* Estilos básicos para el mapa y el contenedor de selección */
+        /* Estilos básicos */
         body { margin: 0; font-family: Arial, sans-serif; }
         #mapid { height: 100vh; width: 100%; z-index: 1; }
         #controls {
@@ -37,7 +37,7 @@
 
         /* Estilo para los marcadores de precio */
         .price-marker {
-            background-color: #007bff; /* Azul */
+            background-color: #007bff;
             color: white;
             font-weight: bold;
             border-radius: 5px;
@@ -57,8 +57,6 @@
         .price-marker div {
             padding: 0 5px;
         }
-        /* Estilo para los marcadores de cluster (opcional, por si quieres personalizar) */
-        .marker-cluster-small { background-color: rgba(181, 226, 140, 0.6); }
     </style>
 </head>
 <body>
@@ -81,45 +79,24 @@
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // Variables globales para el mapa, los datos y la capa de clústeres
+        // Variables globales
         let geoJsonData = null;
-        let markers = L.markerClusterGroup(); // ¡Nueva capa de clústeres!
+        let markers = L.markerClusterGroup(); 
+        const MIN_ZOOM_LEVEL_FOR_PRICE = 12; // Define el zoom mínimo para mostrar el cartel de precio
         
         // 1. Inicializar el mapa
-        const map = L.map('mapid').setView([40.416775, -3.703790], 6); // Centrado en España
+        const map = L.map('mapid').setView([40.416775, -3.703790], 6);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'
         }).addTo(map);
 
-        // 2. Función para crear el marcador de precio personalizado (SIN CAMBIOS)
-        function createPriceMarker(feature, latlng, selectedPriceKey) {
-            const precio = feature.properties[selectedPriceKey];
-            
-            let displayPrice = 'N/D';
-            let markerClass = 'price-marker';
-
-            if (precio !== null && precio !== undefined) {
-                displayPrice = precio.toFixed(3) + ' €';
-            } else {
-                displayPrice = 'N/D';
-                markerClass += ' no-data';
-            }
-
-            const htmlIcon = L.divIcon({
-                className: markerClass,
-                html: `<div>${displayPrice}</div>`,
-                iconSize: [80, 25],
-                iconAnchor: [40, 12]
-            });
-
-            const marker = L.marker(latlng, { icon: htmlIcon });
-
-            // Construir el pop-up completo (desplegable al pinchar)
-            let popupContent = `
-                <h3>${feature.properties.Rotulo}</h3>
-                <strong>Dirección:</strong> ${feature.properties.Direccion}<br><hr>
+        // 2. Función para generar el contenido del pop-up (extraída para simplificar)
+        function getPopupContent(properties) {
+             let popupContent = `
+                <h3>${properties.Rotulo}</h3>
+                <strong>Dirección:</strong> ${properties.Direccion}<br><hr>
             `;
             
             const readableNames = {
@@ -131,19 +108,51 @@
             };
             
             for (const key in readableNames) {
-                const p = feature.properties[key];
+                const p = properties[key];
                 const priceText = (p !== null && p !== undefined) ? `${p.toFixed(3)} €/L` : 'No disponible';
                 popupContent += `<strong>${readableNames[key]}:</strong> ${priceText}<br>`;
             }
+            return popupContent;
+        }
+
+
+        // 3. Función para crear el marcador (ACTUALIZADA con Filtro por Zoom)
+        function createPriceMarker(feature, latlng, selectedPriceKey) {
+            const properties = feature.properties;
+            const precio = properties[selectedPriceKey];
+            
+            let marker;
+            let popupContent = getPopupContent(properties);
+
+
+            // Si el zoom es bajo, o si el precio es N/D, usamos un marcador por defecto
+            if (map.getZoom() < MIN_ZOOM_LEVEL_FOR_PRICE || precio === null || precio === undefined) {
+                
+                // Usar marcador por defecto de Leaflet
+                marker = L.marker(latlng);
+
+            } else {
+                // Si el zoom es ALTO y hay precio, mostramos el cartel de precio
+                
+                let displayPrice = precio.toFixed(3) + ' €';
+                
+                const htmlIcon = L.divIcon({
+                    className: 'price-marker',
+                    html: `<div>${displayPrice}</div>`,
+                    iconSize: [80, 25],
+                    iconAnchor: [40, 12]
+                });
+
+                marker = L.marker(latlng, { icon: htmlIcon });
+            }
 
             marker.bindPopup(popupContent);
-            
             return marker;
         }
 
-        // 3. Función principal para actualizar el mapa (ACTUALIZADA con Clustering)
+        // 4. Función principal para actualizar el mapa (con Clustering)
         function updateMap(selectedPriceKey) {
-            // 1. Quitar todos los marcadores de la capa de clústeres
+            // 1. Limpiar la capa de clústeres
             markers.clearLayers();
             
             // 2. Procesar los datos y añadir a la capa de clústeres
@@ -153,18 +162,17 @@
                         return createPriceMarker(feature, latlng, selectedPriceKey);
                     }
                 }).eachLayer(function (layer) {
-                    // Añadir cada marcador individual a la capa de clústeres
                     markers.addLayer(layer);
                 });
 
-                // 3. Añadir la capa de clústeres al mapa (solo una vez)
+                // 3. Añadir la capa de clústeres al mapa (solo si no está ya)
                 if (!map.hasLayer(markers)) {
                      map.addLayer(markers);
                 }
             }
         }
 
-        // 4. Carga inicial de datos GeoJSON
+        // 5. Carga inicial de datos GeoJSON
         fetch('gasolineras.geojson')
             .then(response => {
                 if (!response.ok) {
@@ -174,7 +182,7 @@
             })
             .then(data => {
                 geoJsonData = data;
-                // Muestra el mapa con la opción por defecto (Gasolina 95 E5)
+                // Muestra el mapa con la opción por defecto
                 updateMap(document.getElementById('carburante-select').value);
             })
             .catch(error => {
@@ -182,10 +190,20 @@
                 alert('No se pudieron cargar los datos de las gasolineras. Asegúrate de ejecutar el script Python primero.');
             });
 
-        // 5. Escuchar el cambio en el desplegable
+        // 6. Escuchar eventos
+        
+        // Cambio en el desplegable de carburante
         document.getElementById('carburante-select').addEventListener('change', function(e) {
             const selectedKey = e.target.value;
             updateMap(selectedKey);
+        });
+
+        // ¡NUEVO! Escucha el evento de zoom para re-dibujar los marcadores
+        map.on('zoomend', function () {
+            if (geoJsonData) {
+                const selectedKey = document.getElementById('carburante-select').value;
+                updateMap(selectedKey);
+            }
         });
     </script>
 </body>
