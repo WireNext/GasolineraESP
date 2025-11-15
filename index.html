@@ -58,7 +58,7 @@
             padding: 0 5px;
         }
         
-        /* Estilo para N/D: lo hacemos más discreto, como deseabas */
+        /* Estilo para N/D */
         .price-marker.no-data {
             background-color: #777; /* Gris */
             opacity: 0.6;
@@ -85,20 +85,80 @@
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
     <script>
+        // --- CONSTANTES PARA LOCAL STORAGE ---
+        const LAST_VIEW_KEY = 'gasolinera_last_view';
+        const LAST_FUEL_KEY = 'gasolinera_last_fuel';
+
         // Variables globales
         let geoJsonData = null;
         let markers = L.markerClusterGroup(); 
-        const MIN_ZOOM_LEVEL_FOR_PRICE = 12; // Define el zoom mínimo para mostrar el cartel de precio
+        const MIN_ZOOM_LEVEL_FOR_PRICE = 12;
+
+        // --- FUNCIONES DE GUARDADO/CARGA DE ESTADO ---
+
+        function saveMapState() {
+            // Guarda el zoom y la posición central
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            
+            const viewState = {
+                lat: center.lat,
+                lng: center.lng,
+                zoom: zoom
+            };
+            localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(viewState));
+
+            // Guarda el carburante seleccionado
+            const selectedFuel = document.getElementById('carburante-select').value;
+            localStorage.setItem(LAST_FUEL_KEY, selectedFuel);
+        }
+
+        function loadMapState() {
+            // Valores por defecto
+            let initialView = {
+                lat: 40.416775, // Centro de España (Madrid)
+                lng: -3.703790,
+                zoom: 6         // Zoom a nivel de país
+            };
+            let initialFuel = 'Precio_95E5'; 
+
+            // 1. Cargar posición y zoom desde localStorage
+            const storedView = localStorage.getItem(LAST_VIEW_KEY);
+            if (storedView) {
+                try {
+                    const view = JSON.parse(storedView);
+                    // Validación simple
+                    if (view && typeof view.lat === 'number') {
+                        initialView = view;
+                    }
+                } catch (e) {
+                    console.error("Error al cargar estado de vista:", e);
+                }
+            }
+
+            // 2. Cargar carburante desde localStorage
+            const storedFuel = localStorage.getItem(LAST_FUEL_KEY);
+            if (storedFuel) {
+                initialFuel = storedFuel;
+            }
+
+            return { view: initialView, fuel: initialFuel };
+        }
         
-        // 1. Inicializar el mapa
-        const map = L.map('mapid').setView([40.416775, -3.703790], 6);
+        // ---------------------------------------------
+        
+        // Cargar estado guardado al inicio
+        const storedState = loadMapState();
+
+        // 1. Inicializar el mapa con el estado guardado
+        const map = L.map('mapid').setView([storedState.view.lat, storedState.view.lng], storedState.view.zoom);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'
         }).addTo(map);
 
-        // 2. Función para generar el contenido del pop-up
+        // 2. Función para generar el contenido del pop-up (sin cambios)
         function getPopupContent(properties) {
              let popupContent = `
                 <h3>${properties.Rotulo}</h3>
@@ -122,7 +182,7 @@
         }
 
 
-        // 3. Función para crear el marcador (CORREGIDA para siempre mostrar cartel si zoom es alto)
+        // 3. Función para crear el marcador (sin cambios)
         function createPriceMarker(feature, latlng, selectedPriceKey) {
             const properties = feature.properties;
             const precio = properties[selectedPriceKey]; 
@@ -131,10 +191,8 @@
             let popupContent = getPopupContent(properties);
 
 
-            // Si el zoom es alto, SIEMPRE creamos un cartel (con precio o N/D)
             if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PRICE) {
                 
-                // Determinamos el texto y la clase CSS para el cartel
                 let displayPrice;
                 let markerClass = 'price-marker';
                 
@@ -142,10 +200,9 @@
                     displayPrice = precio.toFixed(3) + ' €';
                 } else {
                     displayPrice = 'N/D';
-                    markerClass += ' no-data'; // Añadir clase para estilo gris/discreto
+                    markerClass += ' no-data'; 
                 }
                 
-                // Creamos el ícono DIV con el texto (precio o N/D)
                 const htmlIcon = L.divIcon({
                     className: markerClass,
                     html: `<div>${displayPrice}</div>`,
@@ -156,7 +213,6 @@
                 marker = L.marker(latlng, { icon: htmlIcon });
 
             } else {
-                // Si el zoom es bajo, usamos el marcador básico de Leaflet (chincheta)
                 marker = L.marker(latlng);
             }
 
@@ -164,7 +220,7 @@
             return marker;
         }
 
-        // 4. Función principal para actualizar el mapa (sin cambios, ya que no filtra)
+        // 4. Función principal para actualizar el mapa (sin cambios)
         function updateMap(selectedPriceKey) {
             markers.clearLayers();
             
@@ -183,7 +239,7 @@
             }
         }
 
-        // 5. Carga inicial de datos GeoJSON (sin cambios)
+        // 5. Carga inicial de datos GeoJSON (AJUSTADO para usar el carburante guardado)
         fetch('gasolineras.geojson')
             .then(response => {
                 if (!response.ok) {
@@ -193,25 +249,37 @@
             })
             .then(data => {
                 geoJsonData = data;
-                updateMap(document.getElementById('carburante-select').value);
+                
+                // Aplicar el carburante guardado al selector
+                const fuelSelect = document.getElementById('carburante-select');
+                fuelSelect.value = storedState.fuel;
+                
+                // Inicializar el mapa con el carburante guardado
+                updateMap(storedState.fuel);
             })
             .catch(error => {
                 console.error('Error al cargar los datos:', error);
                 alert('No se pudieron cargar los datos de las gasolineras. Asegúrate de ejecutar el script Python primero.');
             });
 
-        // 6. Escuchar eventos (sin cambios)
+        // 6. Escuchar eventos (AJUSTADO para guardar estado)
         
+        // Guardar estado al cambiar el carburante
         document.getElementById('carburante-select').addEventListener('change', function(e) {
             const selectedKey = e.target.value;
             updateMap(selectedKey);
+            saveMapState(); // Guarda la nueva selección de carburante
         });
 
+        // Guardar estado al mover o hacer zoom en el mapa
+        map.on('moveend', saveMapState); // Guarda la nueva posición
+        
         map.on('zoomend', function () {
             if (geoJsonData) {
                 const selectedKey = document.getElementById('carburante-select').value;
-                updateMap(selectedKey);
+                updateMap(selectedKey); // Actualiza los marcadores por el cambio de zoom
             }
+            saveMapState(); // Guarda el nuevo nivel de zoom
         });
     </script>
 </body>
