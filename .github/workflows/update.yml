@@ -5,7 +5,8 @@ on:
   # 1. Programación diaria a las 04:00 AM (UTC)
   schedule:
     # La sintaxis cron es 'minuto hora día_del_mes mes día_de_la_semana'
-    - cron: '0 4 * * *'
+    - cron: '30 10 * * *'
+    - cron: '30 14 * * *'
   
   # 2. Permite la ejecución manual (opcional)
   workflow_dispatch:
