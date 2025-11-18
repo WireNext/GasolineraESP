@@ -1,6 +1,6 @@
 import requests
 import json
-import time # Importar time para el delay
+import time 
 from pathlib import Path
 
 # URL de la fuente de datos
@@ -9,7 +9,7 @@ OUTPUT_FILE = "gasolineras.geojson"
 
 # Configuración de reintentos
 MAX_RETRIES = 5
-RETRY_DELAY_SECONDS = 10 # Aumentamos el delay a 10 segundos
+RETRY_DELAY_SECONDS = 10 
 
 # Mapeo de nombres de campos del JSON original a nombres simplificados y normalizados
 PRECIOS_MAP = {
@@ -27,6 +27,7 @@ def clean_price(price_str):
     if not price_str or price_str.strip() == "":
         return None
     try:
+        # Reemplaza la coma por el punto para la conversión a float
         return float(price_str.replace(',', '.'))
     except ValueError:
         return None
@@ -44,14 +45,19 @@ def process_data():
     """Descarga los datos de la API, limpia y genera el GeoJSON con reintentos."""
     print("1. Descargando datos de la API del Ministerio...")
     
+    # --- CABECERA USER-AGENT para simular un navegador y evitar bloqueos de IP ---
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
     data = None
     # Lógica de Reintentos
     for attempt in range(MAX_RETRIES):
         try:
             print(f"Intento {attempt + 1} de {MAX_RETRIES}...")
-            # Añadir timeout para evitar esperas infinitas
-            response = requests.get(API_URL, timeout=45) 
-            response.raise_for_status() # Lanza error si el estado HTTP es fallido
+            # Realizar la petición, pasando la cabecera y el timeout
+            response = requests.get(API_URL, timeout=45, headers=HEADERS) 
+            response.raise_for_status()
             data = response.json()
             print("Descarga exitosa.")
             break # Salir del bucle si la descarga es exitosa
@@ -76,6 +82,7 @@ def process_data():
     print(f"2. Procesando {len(estaciones)} estaciones de servicio...")
     
     for estacion in estaciones:
+        # La API usa 'Longitud (WGS84)' para la longitud y 'Latitud' para la latitud
         lat = clean_coord(estacion.get("Latitud"))
         lon = clean_coord(estacion.get("Longitud (WGS84)"))
         
@@ -95,7 +102,7 @@ def process_data():
             if price is not None:
                 has_valid_price = True
         
-        # Solo añade la estación si tiene al menos un precio válido
+        # Solo añade la estación si tiene al menos un precio válido (para reducir el tamaño del archivo)
         if has_valid_price:
             feature = {
                 "type": "Feature",
@@ -115,6 +122,7 @@ def process_data():
 
     # Guardar el GeoJSON
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        # Usar indent=2 para hacer el GeoJSON legible, pero puedes quitarlo si quieres el archivo más pequeño
         json.dump(geojson, f, ensure_ascii=False, indent=2)
         
     print(f"3. Proceso finalizado. {len(features)} estaciones guardadas en '{OUTPUT_FILE}'.")
