@@ -8,8 +8,8 @@ API_URL = "https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/Prec
 OUTPUT_FILE = "gasolineras.geojson"
 
 # Configuración de reintentos
-MAX_RETRIES = 5
-RETRY_DELAY_SECONDS = 10 
+MAX_RETRIES = 10
+RETRY_DELAY_SECONDS = 20 
 
 # Mapeo de nombres de campos del JSON original a nombres simplificados y normalizados
 PRECIOS_MAP = {
