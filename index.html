@@ -1,290 +1,537 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gasolineras en España - Precios Dinámicos</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FuelES · Precios de Gasolina en España</title>
+<link rel="shortcut icon" href="icono.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8789822435662410" crossorigin="anonymous"></script>
+<style>
+:root {
+  --g0: rgba(255,255,255,0.05);
+  --g1: rgba(255,255,255,0.10);
+  --g2: rgba(255,255,255,0.16);
+  --g3: rgba(255,255,255,0.24);
+  --gb: rgba(255,255,255,0.42);
+  --sh1: 0 2px 8px rgba(0,0,0,.20), 0 0 0 1px rgba(255,255,255,.07);
+  --sh2: 0 8px 32px rgba(0,0,0,.30), 0 0 0 1px rgba(255,255,255,.09);
+  --sh3: 0 20px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.11);
+  --sh4: 0 32px 80px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.13);
+  --blur-sm: blur(16px) saturate(1.6);
+  --blur-md: blur(28px) saturate(1.8);
+  --blur-lg: blur(44px) saturate(2.0);
+  --blue:    #0A84FF; --teal: #30D5C8; --green: #32D74B;
+  --yellow:  #FFD60A; --orange:#FF9F0A; --red:  #FF453A; --purple: #BF5AF2;
+  --t0: rgba(255,255,255,1.00); --t1: rgba(255,255,255,0.90);
+  --t2: rgba(255,255,255,0.58); --t3: rgba(255,255,255,0.34); --t4: rgba(255,255,255,0.16);
+  --r-sm: 11px; --r-md: 17px; --r-lg: 23px; --r-xl: 30px;
+  --panel-w: 315px; --hdr-h: 58px;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; overflow:hidden; }
+body { font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif; -webkit-font-smoothing:antialiased; color:var(--t1); }
+button { font-family:inherit; cursor:pointer; border:none; background:none; }
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+/* BACKGROUND */
+#scene { position:fixed; inset:0; z-index:0; background:#060C1A; }
+#scene::before {
+  content:''; position:absolute; inset:-25%;
+  background:
+    radial-gradient(ellipse 75% 60% at 8% 14%, rgba(10,132,255,.34) 0%, transparent 55%),
+    radial-gradient(ellipse 58% 50% at 90% 8%,  rgba(48,213,200,.22) 0%, transparent 52%),
+    radial-gradient(ellipse 65% 55% at 84% 88%, rgba(10,132,255,.18) 0%, transparent 52%),
+    radial-gradient(ellipse 48% 44% at 12% 86%, rgba(191,90,242,.16) 0%, transparent 48%);
+  animation: aurora 28s ease-in-out infinite alternate;
+}
+#scene::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+}
+@keyframes aurora {
+  0%   { transform:scale(1) rotate(0deg);     }
+  40%  { transform:scale(1.07) rotate(1.4deg);}
+  70%  { transform:scale(.96) rotate(-.8deg); }
+  100% { transform:scale(1.05) rotate(.6deg); }
+}
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-    <link rel="shortcut icon" href="icono.png">
+/* MAP */
+#map { position:fixed; inset:0; z-index:1; }
+.leaflet-tile-pane { filter:brightness(.79) saturate(.78) hue-rotate(8deg); }
+.leaflet-control-zoom { display:none !important; }
+.leaflet-control-attribution {
+  background:rgba(0,0,0,.52)!important; backdrop-filter:blur(10px)!important;
+  color:var(--t3)!important; border-radius:9px!important; font-size:9.5px!important;
+  border:1px solid rgba(255,255,255,.07)!important; padding:3px 8px!important;
+}
+.leaflet-control-attribution a { color:var(--t2)!important; }
 
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8789822435662410"
-     crossorigin="anonymous"></script>
+/* GLASS UTIL */
+.glass { background:var(--g2); backdrop-filter:var(--blur-md); -webkit-backdrop-filter:var(--blur-md); border:1px solid rgba(255,255,255,.20); box-shadow:var(--sh2); }
+.glass-sm { background:var(--g1); backdrop-filter:var(--blur-sm); -webkit-backdrop-filter:var(--blur-sm); border:1px solid rgba(255,255,255,.14); box-shadow:var(--sh1); }
 
-    <style>
-        /* Estilos básicos */
-        body { margin: 0; font-family: Arial, sans-serif; }
-        #mapid { height: 100vh; width: 100%; z-index: 1; }
-        #controls {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        #carburante-select {
-            padding: 8px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            min-width: 200px;
-        }
+/* HEADER */
+#header {
+  position:fixed; top:0; left:0; right:0; height:var(--hdr-h); z-index:1000;
+  background:rgba(6,12,26,.70); backdrop-filter:var(--blur-lg); -webkit-backdrop-filter:var(--blur-lg);
+  border-bottom:1px solid rgba(255,255,255,.09);
+  display:flex; align-items:center; padding:0 14px; gap:11px;
+}
+#logo { display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; }
+#logo img { width:33px; height:33px; border-radius:9px; box-shadow:0 0 0 1px rgba(255,255,255,.14),0 4px 16px rgba(10,132,255,.55); }
+.logo-brand { font-size:19px; font-weight:800; letter-spacing:-.5px; background:linear-gradient(130deg,#fff 0%,rgba(10,132,255,.85) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.logo-sub { font-size:10px; color:var(--t3); font-weight:500; margin-top:-1px; }
 
-        /* Estilo para los marcadores de precio */
-        .price-marker {
-            background-color: #007bff;
-            color: white;
-            font-weight: bold;
-            border-radius: 5px;
-            padding: 2px 5px;
-            text-align: center;
-            line-height: 25px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-            white-space: nowrap;
-            border: 2px solid white;
-            opacity: 0.9;
-            transition: all 0.1s;
-        }
-        .price-marker:hover {
-            opacity: 1;
-            transform: scale(1.1);
-        }
-        .price-marker div {
-            padding: 0 5px;
-        }
-        
-        /* Estilo para N/D */
-        .price-marker.no-data {
-            background-color: #777; /* Gris */
-            opacity: 0.6;
-        }
-    </style>
+#hdr-search {
+  flex:1; max-width:360px; display:flex; align-items:center; gap:8px;
+  padding:8px 14px; border-radius:24px;
+  background:var(--g1); border:1px solid rgba(255,255,255,.15);
+  backdrop-filter:var(--blur-sm); -webkit-backdrop-filter:var(--blur-sm);
+  transition:all .2s;
+}
+#hdr-search:focus-within { background:var(--g2); border-color:rgba(10,132,255,.5); box-shadow:0 0 0 3px rgba(10,132,255,.14); }
+#hdr-search svg { opacity:.38; flex-shrink:0; }
+#s-inp { flex:1; background:none; border:none; outline:none; color:var(--t1); font-size:13px; font-weight:500; }
+#s-inp::placeholder { color:var(--t3); }
+#s-clr { color:var(--t3); font-size:17px; cursor:pointer; display:none; line-height:1; padding:0 1px; }
+#s-clr:hover { color:var(--t1); }
+.hsp { flex:1; }
+.hpill {
+  display:flex; align-items:center; gap:5px; padding:5px 11px; border-radius:20px;
+  font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0;
+  background:var(--g1); border:1px solid rgba(255,255,255,.11); color:var(--t2);
+}
+.hpill.live { background:rgba(50,215,75,.10); border-color:rgba(50,215,75,.24); color:rgba(50,215,75,.9); }
+.hpill .dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.72)} }
+@media(max-width:700px){.hpill.hm{display:none}}
+@media(max-width:520px){.logo-sub,#hdr-search{display:none}}
+
+/* SEARCH DROP */
+#s-drop {
+  position:fixed; top:calc(var(--hdr-h) + 6px); left:50%; transform:translateX(-50%);
+  width:min(450px,calc(100vw - 28px)); z-index:1100; display:none;
+  border-radius:var(--r-md); overflow:hidden;
+  background:rgba(7,14,32,.93); backdrop-filter:var(--blur-lg); -webkit-backdrop-filter:var(--blur-lg);
+  border:1px solid rgba(255,255,255,.18); box-shadow:var(--sh4);
+}
+.sdi { display:flex; align-items:center; gap:12px; padding:11px 16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,.045); transition:background .12s; }
+.sdi:last-child { border-bottom:none; }
+.sdi:hover { background:rgba(10,132,255,.18); }
+.sdi-ico { font-size:15px; flex-shrink:0; }
+.sdi-body { flex:1; min-width:0; }
+.sdi-name { font-size:13px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sdi-addr { font-size:11px; color:var(--t3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sdi-price { font-family:'DM Mono',monospace; font-size:13.5px; font-weight:500; color:var(--green); flex-shrink:0; }
+.sdi-price.nd { color:var(--t4); font-size:11px; font-family:'DM Sans',sans-serif; }
+
+/* LEFT PANEL */
+#panel {
+  position:fixed; top:calc(var(--hdr-h)+10px); left:10px; width:var(--panel-w);
+  max-height:calc(100vh - var(--hdr-h) - 20px); z-index:900;
+  display:flex; flex-direction:column; gap:8px;
+  overflow-y:auto; overflow-x:hidden; scrollbar-width:none; padding-bottom:16px;
+  pointer-events:none;
+}
+#panel::-webkit-scrollbar { display:none; }
+#panel > * { pointer-events:all; }
+@media(max-width:640px){ #panel{display:none;} }
+
+.card { border-radius:var(--r-lg); padding:15px 16px; animation:slideIn .44s cubic-bezier(.34,1.4,.64,1) both; }
+@keyframes slideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+.card:nth-child(1){animation-delay:.06s} .card:nth-child(2){animation-delay:.13s}
+.card:nth-child(3){animation-delay:.20s} .card:nth-child(4){animation-delay:.27s}
+.card:nth-child(5){animation-delay:.34s}
+
+.ctitle { font-size:10px; font-weight:700; letter-spacing:.10em; text-transform:uppercase; color:var(--t3); margin-bottom:11px; display:flex; align-items:center; gap:6px; }
+.ctag { font-size:9.5px; padding:1px 7px; border-radius:12px; background:rgba(10,132,255,.18); border:1px solid rgba(10,132,255,.30); color:rgba(10,132,255,.9); letter-spacing:.05em; }
+
+/* FUEL BTNS */
+.fgrid { display:flex; flex-direction:column; gap:5px; }
+.fbtn {
+  display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:var(--r-sm);
+  background:var(--g0); border:1px solid rgba(255,255,255,.08);
+  color:var(--t2); font-size:13px; font-weight:600; text-align:left;
+  transition:all .17s ease; position:relative; overflow:hidden;
+}
+.fbtn::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,.03),transparent); opacity:0; transition:opacity .17s; }
+.fbtn:hover { background:var(--g1); border-color:rgba(255,255,255,.18); color:var(--t1); transform:translateX(3px); }
+.fbtn:hover::after { opacity:1; }
+.fbtn.on { background:rgba(10,132,255,.15); border-color:rgba(10,132,255,.42); color:var(--t0); box-shadow:0 0 22px rgba(10,132,255,.16),inset 0 0 18px rgba(10,132,255,.05); }
+.fbtn.on::after { opacity:1; }
+.fdot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+.fname { flex:1; }
+.favg { font-family:'DM Mono',monospace; font-size:11.5px; font-weight:500; color:var(--blue); background:rgba(10,132,255,.12); padding:2px 8px; border-radius:6px; flex-shrink:0; transition:all .3s; }
+
+/* STATS */
+.sgrid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.scell { background:var(--g0); border:1px solid rgba(255,255,255,.07); border-radius:var(--r-sm); padding:10px 12px; }
+.scell.wide { grid-column:1/-1; }
+.slabel { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); margin-bottom:5px; }
+.sval { font-family:'DM Mono',monospace; font-size:18px; font-weight:500; line-height:1; color:var(--t1); }
+.sval.green{color:var(--green)} .sval.red{color:var(--red)} .sval.amber{color:var(--orange)} .sval.teal{color:var(--teal)}
+.ssub { font-size:10px; color:var(--t3); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* NEAR */
+.nlist { display:flex; flex-direction:column; gap:5px; }
+.nitem { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r-sm); background:var(--g0); border:1px solid rgba(255,255,255,.07); cursor:pointer; transition:all .18s; }
+.nitem:hover { background:var(--g1); transform:translateX(3px); }
+.nrank { font-size:11px; font-weight:800; color:var(--t3); width:18px; flex-shrink:0; text-align:center; }
+.nitem:nth-child(1) .nrank{color:#FFD60A;text-shadow:0 0 8px #FFD60A70}
+.nitem:nth-child(2) .nrank{color:#e0e0e0}
+.nitem:nth-child(3) .nrank{color:#CD7F32}
+.nname { flex:1; font-size:12.5px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ndist { font-size:10px; color:var(--t3); font-weight:600; flex-shrink:0; }
+.nprice { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--green); flex-shrink:0; }
+.locbtn { margin-top:9px; width:100%; padding:9px 14px; border-radius:var(--r-sm); background:rgba(10,132,255,.11); border:1px solid rgba(10,132,255,.28); color:rgba(255,255,255,.80); font-size:12.5px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .18s; }
+.locbtn:hover { background:rgba(10,132,255,.22); border-color:rgba(10,132,255,.52); color:var(--t0); transform:translateY(-1px); }
+
+/* BRAND CHIPS */
+.bchips { display:flex; gap:5px; flex-wrap:wrap; }
+.bchip { padding:5px 11px; border-radius:18px; font-size:11.5px; font-weight:700; background:var(--g0); border:1px solid rgba(255,255,255,.09); color:var(--t2); cursor:pointer; transition:all .15s; }
+.bchip:hover { background:var(--g1); color:var(--t1); border-color:rgba(255,255,255,.20); }
+.bchip.on { background:rgba(10,132,255,.18); border-color:rgba(10,132,255,.40); color:var(--t0); }
+.bchip.all.on { background:rgba(50,215,75,.14); border-color:rgba(50,215,75,.32); color:var(--green); }
+
+/* RIGHT CONTROLS */
+#rc { position:fixed; top:calc(var(--hdr-h)+10px); right:10px; z-index:900; display:flex; flex-direction:column; gap:7px; animation:fadeIn .4s ease .3s both; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.cb { width:42px; height:42px; border-radius:13px; background:var(--g2); border:1px solid rgba(255,255,255,.20); backdrop-filter:var(--blur-sm); -webkit-backdrop-filter:var(--blur-sm); box-shadow:var(--sh1); color:var(--t1); display:flex; align-items:center; justify-content:center; font-size:18px; transition:all .18s; }
+.cb:hover { background:var(--g3); transform:scale(1.07); box-shadow:var(--sh2); }
+.cb:active { transform:scale(.94); }
+
+/* MARKERS */
+.mk { font-family:'DM Mono',monospace; font-size:11px; font-weight:500; padding:4px 8px; border-radius:8px; white-space:nowrap; cursor:pointer; transition:transform .1s; border:1px solid rgba(255,255,255,.42); box-shadow:0 3px 12px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.35); }
+.mk:hover { transform:scale(1.22); z-index:9999 !important; }
+.mk-lo  { background:linear-gradient(145deg,#0d4018,#17702a); color:#7dff9a; border-color:rgba(125,255,154,.32); }
+.mk-mid { background:linear-gradient(145deg,#09306a,#0958b8); color:#a0c8ff; border-color:rgba(160,200,255,.28); }
+.mk-hi  { background:linear-gradient(145deg,#6e1410,#b82e20); color:#ffb5ae; border-color:rgba(255,181,174,.28); }
+.mk-nd  { background:rgba(36,38,50,.85); color:rgba(255,255,255,.25); border-color:rgba(255,255,255,.11); font-size:10px; }
+.fcluster { display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(10,132,255,.22); border:2px solid rgba(10,132,255,.52); backdrop-filter:blur(8px); color:#fff; font-weight:800; font-family:'DM Sans',sans-serif; box-shadow:0 4px 16px rgba(0,0,0,.45),0 0 0 4px rgba(10,132,255,.12); }
+
+/* POPUP */
+.leaflet-popup-content-wrapper { background:rgba(7,14,32,.93)!important; backdrop-filter:var(--blur-lg)!important; -webkit-backdrop-filter:var(--blur-lg)!important; border:1px solid rgba(255,255,255,.18)!important; border-radius:22px!important; box-shadow:var(--sh4)!important; padding:0!important; color:var(--t1)!important; }
+.leaflet-popup-tip-container { display:none; }
+.leaflet-popup-content { margin:0!important; width:262px!important; }
+.leaflet-popup-close-button { color:var(--t3)!important; font-size:20px!important; top:12px!important; right:14px!important; width:24px!important; height:24px!important; display:flex!important; align-items:center!important; justify-content:center!important; background:rgba(255,255,255,.07)!important; border-radius:50%!important; transition:all .15s!important; }
+.leaflet-popup-close-button:hover { background:rgba(255,255,255,.16)!important; color:var(--t0)!important; }
+
+.pu { padding:17px 17px 15px; }
+.pu-hdr { display:flex; align-items:flex-start; gap:11px; margin-bottom:13px; }
+.pu-ico { width:40px; height:40px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:19px; background:linear-gradient(145deg,rgba(10,132,255,.24),rgba(48,213,200,.14)); border:1px solid rgba(255,255,255,.15); }
+.pu-name { font-size:14.5px; font-weight:800; color:var(--t0); line-height:1.2; margin-bottom:3px; }
+.pu-addr { font-size:11px; color:var(--t3); line-height:1.35; }
+.pu-rows { display:flex; flex-direction:column; gap:4px; }
+.ppr { display:flex; align-items:center; justify-content:space-between; padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); }
+.ppr.sel { background:rgba(10,132,255,.15); border-color:rgba(10,132,255,.30); }
+.ppr-l { font-size:11.5px; color:var(--t2); font-weight:600; }
+.ppr-v { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--t0); }
+.ppr-v.good{color:var(--green)} .ppr-v.bad{color:var(--red)} .ppr-v.nd{color:var(--t4);font-size:11px;font-family:'DM Sans',sans-serif}
+
+/* LEGEND */
+#legend { position:fixed; bottom:20px; right:10px; z-index:900; border-radius:var(--r-sm); padding:11px 14px; animation:fadeIn .5s ease .5s both; }
+#legend h5 { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); margin-bottom:8px; }
+.lrow { display:flex; align-items:center; gap:7px; font-size:10.5px; color:var(--t2); margin-bottom:5px; }
+.lrow:last-child{margin-bottom:0}
+.lpip { width:22px; height:9px; border-radius:3px; flex-shrink:0; }
+.lpip.lo{background:linear-gradient(90deg,#0d4018,#17702a)} .lpip.mid{background:linear-gradient(90deg,#09306a,#0958b8)} .lpip.hi{background:linear-gradient(90deg,#6e1410,#b82e20)}
+@media(max-width:640px){#legend{bottom:108px}}
+
+/* ZOOM HINT */
+#zhint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:900; pointer-events:none; padding:8px 20px; border-radius:28px; background:rgba(0,0,0,.56); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.11); font-size:12px; font-weight:600; color:var(--t2); white-space:nowrap; transition:opacity .4s; }
+@media(max-width:640px){#zhint{bottom:115px}}
+
+/* MOBILE BAR */
+#mbar { display:none; position:fixed; bottom:0; left:0; right:0; z-index:900; background:rgba(6,12,26,.83); backdrop-filter:var(--blur-lg); -webkit-backdrop-filter:var(--blur-lg); border-top:1px solid rgba(255,255,255,.08); padding:10px 12px max(12px,env(safe-area-inset-bottom)); flex-direction:column; gap:8px; animation:slideUp .4s cubic-bezier(.34,1.2,.64,1) .15s both; }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@media(max-width:640px){#mbar{display:flex}}
+#mfuels { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+#mfuels::-webkit-scrollbar{display:none}
+.mpill { flex-shrink:0; padding:7px 14px; border-radius:20px; background:var(--g1); border:1px solid rgba(255,255,255,.11); color:var(--t2); font-size:12px; font-weight:700; white-space:nowrap; transition:all .15s; }
+.mpill.on { background:rgba(10,132,255,.22); border-color:rgba(10,132,255,.44); color:var(--t0); }
+#mstats { display:flex; gap:6px; }
+.msc { flex:1; padding:8px 9px; border-radius:var(--r-sm); background:var(--g0); border:1px solid rgba(255,255,255,.07); text-align:center; }
+.msc-l { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t3); }
+.msc-v { font-family:'DM Mono',monospace; font-size:14.5px; font-weight:500; color:var(--t1); margin-top:1px; }
+
+/* LOADER */
+#loader { position:fixed; inset:0; z-index:9999; background:#060C1A; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; }
+#loader::before { content:''; position:absolute; inset:-30%; background:radial-gradient(ellipse 55% 55% at 50% 42%,rgba(10,132,255,.28) 0%,transparent 60%),radial-gradient(ellipse 38% 38% at 78% 22%,rgba(48,213,200,.14) 0%,transparent 50%); animation:lglow 4s ease-in-out infinite alternate; }
+@keyframes lglow { from{transform:scale(1)} to{transform:scale(1.1)} }
+#l-logo { width:86px; height:86px; border-radius:25px; box-shadow:0 0 0 1px rgba(255,255,255,.14),0 8px 42px rgba(10,132,255,.62); animation:lpop .7s cubic-bezier(.34,1.5,.64,1); position:relative; z-index:1; }
+@keyframes lpop { from{opacity:0;transform:scale(.35) rotate(-10deg)} to{opacity:1;transform:scale(1) rotate(0deg)} }
+#l-title { font-size:30px; font-weight:800; letter-spacing:-.6px; background:linear-gradient(130deg,#fff,rgba(10,132,255,.85)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:fup .5s ease .2s both; position:relative; z-index:1; }
+#l-sub { font-size:13.5px; color:var(--t3); animation:fup .5s ease .35s both; position:relative; z-index:1; }
+@keyframes fup { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+#l-bar-w { width:200px; height:4px; border-radius:2px; background:rgba(255,255,255,.08); overflow:hidden; animation:fup .5s ease .45s both; position:relative; z-index:1; }
+#l-bar { height:100%; width:0; border-radius:2px; background:linear-gradient(90deg,#0A84FF,#30D5C8); transition:width .3s ease; }
+#loader.out { opacity:0; transition:opacity .5s ease; pointer-events:none; }
+
+::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:2px}
+</style>
 </head>
 <body>
 
-    <div id="controls">
-        <label for="carburante-select">⛽ Mostrar precio de:</label>
-        <select id="carburante-select">
-            <option value="Precio_95E5">Gasolina 95 E5</option>
-            <option value="Precio_GasoilA">Gasóleo A</option>
-            <option value="Precio_98E5">Gasolina 98 E5</option>
-            <option value="Precio_GasoilPremium">Gasóleo Premium</option>
-            <option value="Precio_GasoilB">Gasóleo B</option>
-        </select>
+<div id="loader">
+  <img id="l-logo" src="icono.png" alt="FuelES">
+  <div id="l-title">FuelES</div>
+  <div id="l-sub">Cargando precios de gasolineras&hellip;</div>
+  <div id="l-bar-w"><div id="l-bar"></div></div>
+</div>
+
+<div id="scene"></div>
+<div id="map"></div>
+
+<header id="header">
+  <a id="logo" href="#">
+    <img src="icono.png" alt="">
+    <div><div class="logo-brand">FuelES</div><div class="logo-sub">Precios en tiempo real &middot; España</div></div>
+  </a>
+  <div id="hdr-search">
+    <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="white" stroke-width="2.2"/><path d="M20 20l-3-3" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <input type="text" id="s-inp" placeholder="Buscar gasolinera, marca o dirección…" autocomplete="off" spellcheck="false">
+    <span id="s-clr">&#215;</span>
+  </div>
+  <div class="hsp"></div>
+  <div class="hpill hm">&#9981; <span id="h-total">&#8211;</span> estaciones</div>
+  <div class="hpill hm" style="background:rgba(10,132,255,.09);border-color:rgba(10,132,255,.20);color:rgba(160,200,255,.88)">&#128202; <span id="h-avg" style="font-family:'DM Mono',monospace;margin-left:3px">&#8211;</span></div>
+  <div class="hpill live"><div class="dot"></div><span id="h-time">Cargando&hellip;</span></div>
+</header>
+
+<div id="s-drop"></div>
+
+<div id="panel">
+  <div class="card glass">
+    <div class="ctitle">&#9981; Combustible</div>
+    <div class="fgrid">
+      <button class="fbtn on" data-k="Precio_95E5"><div class="fdot" style="background:var(--blue);box-shadow:0 0 7px var(--blue)"></div><span class="fname">Gasolina 95 E5</span><span class="favg" id="fav-Precio_95E5">&#8211;</span></button>
+      <button class="fbtn" data-k="Precio_GasoilA"><div class="fdot" style="background:var(--orange);box-shadow:0 0 7px var(--orange)"></div><span class="fname">Gas&oacute;leo A</span><span class="favg" id="fav-Precio_GasoilA">&#8211;</span></button>
+      <button class="fbtn" data-k="Precio_98E5"><div class="fdot" style="background:var(--teal);box-shadow:0 0 7px var(--teal)"></div><span class="fname">Gasolina 98 E5</span><span class="favg" id="fav-Precio_98E5">&#8211;</span></button>
+      <button class="fbtn" data-k="Precio_GasoilPremium"><div class="fdot" style="background:var(--red);box-shadow:0 0 7px var(--red)"></div><span class="fname">Gas&oacute;leo Premium</span><span class="favg" id="fav-Precio_GasoilPremium">&#8211;</span></button>
+      <button class="fbtn" data-k="Precio_GasoilB"><div class="fdot" style="background:rgba(255,255,255,.40);box-shadow:0 0 7px rgba(255,255,255,.3)"></div><span class="fname">Gas&oacute;leo B</span><span class="favg" id="fav-Precio_GasoilB">&#8211;</span></button>
+      <button class="fbtn" data-k="Precio_98E10"><div class="fdot" style="background:var(--purple);box-shadow:0 0 7px var(--purple)"></div><span class="fname">Gasolina 98 E10</span><span class="favg" id="fav-Precio_98E10">&#8211;</span></button>
     </div>
+  </div>
+  <div class="card glass">
+    <div class="ctitle">&#128202; Estad&iacute;sticas <span class="ctag" id="sc-tag">Vista actual</span></div>
+    <div class="sgrid">
+      <div class="scell"><div class="slabel">M&aacute;s barato</div><div class="sval green" id="s-min">&#8211;</div><div class="ssub" id="s-min-n">&#8211;</div></div>
+      <div class="scell"><div class="slabel">M&aacute;s caro</div><div class="sval red" id="s-max">&#8211;</div><div class="ssub" id="s-max-n">&#8211;</div></div>
+      <div class="scell"><div class="slabel">Precio medio</div><div class="sval amber" id="s-avg">&#8211;</div><div class="ssub">&euro; / litro</div></div>
+      <div class="scell"><div class="slabel">Estaciones</div><div class="sval" id="s-cnt">&#8211;</div><div class="ssub">con datos</div></div>
+      <div class="scell wide"><div class="slabel">Ahorro potencial (llenar 50L)</div><div class="sval teal" id="s-save">&#8211;</div><div class="ssub">m&iacute;n vs m&aacute;x en esta zona</div></div>
+    </div>
+  </div>
+  <div class="card glass">
+    <div class="ctitle">&#127942; M&aacute;s baratas cerca <span class="ctag">TOP 5</span></div>
+    <div class="nlist" id="nlist"><div style="font-size:12px;color:var(--t3);text-align:center;padding:8px 0">Activa tu ubicaci&oacute;n para ver las m&aacute;s baratas cerca</div></div>
+    <button class="locbtn" id="loc-btn">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      Activar mi ubicaci&oacute;n
+    </button>
+  </div>
+  <div class="card glass">
+    <div class="ctitle">&#127991; Filtrar por marca</div>
+    <div class="bchips" id="bchips"></div>
+  </div>
+</div>
 
-    <div id="mapid"></div>
+<div id="rc">
+  <button class="cb glass" id="b-zi" style="font-size:21px;font-weight:300">+</button>
+  <button class="cb glass" id="b-zo" style="font-size:23px;font-weight:200">&#8722;</button>
+  <button class="cb glass" id="b-loc"><svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <button class="cb glass" id="b-fs" style="font-size:16px">&#10548;</button>
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<div id="legend" class="glass-sm">
+  <h5>Precio vs media</h5>
+  <div class="lrow"><div class="lpip lo"></div><span id="leg-lo">Barato</span></div>
+  <div class="lrow"><div class="lpip mid"></div><span>Precio medio</span></div>
+  <div class="lrow"><div class="lpip hi"></div><span id="leg-hi">Caro</span></div>
+</div>
 
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<div id="zhint">&#128269; Acerca el mapa para ver precios individuales</div>
 
-    <script>
-        // --- CONSTANTES PARA LOCAL STORAGE ---
-        const LAST_VIEW_KEY = 'gasolinera_last_view';
-        const LAST_FUEL_KEY = 'gasolinera_last_fuel';
+<div id="mbar">
+  <div id="mfuels">
+    <button class="mpill on" data-k="Precio_95E5">95 E5</button>
+    <button class="mpill" data-k="Precio_GasoilA">Gas&oacute;leo A</button>
+    <button class="mpill" data-k="Precio_98E5">98 E5</button>
+    <button class="mpill" data-k="Precio_GasoilPremium">G. Premium</button>
+    <button class="mpill" data-k="Precio_GasoilB">Gas&oacute;leo B</button>
+    <button class="mpill" data-k="Precio_98E10">98 E10</button>
+  </div>
+  <div id="mstats">
+    <div class="msc"><div class="msc-l">M&iacute;n</div><div class="msc-v" id="m-min">&#8211;</div></div>
+    <div class="msc"><div class="msc-l">Media</div><div class="msc-v" id="m-avg">&#8211;</div></div>
+    <div class="msc"><div class="msc-l">M&aacute;x</div><div class="msc-v" id="m-max">&#8211;</div></div>
+    <div class="msc"><div class="msc-l">Total</div><div class="msc-v" id="m-cnt">&#8211;</div></div>
+  </div>
+</div>
 
-        // Variables globales
-        let geoJsonData = null;
-        let markers = L.markerClusterGroup(); 
-        const MIN_ZOOM_LEVEL_FOR_PRICE = 12;
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+<script>
+const SK_V='fe5_v',SK_F='fe5_f',MZ=12;
+const BRANDS=['REPSOL','CEPSA','MOEVE','GALP','BALLENOIL','PLENERGY','SHELL','BP','PETROPRIX','CARREFOUR'];
+const FM={Precio_95E5:{l:'Gasolina 95 E5'},Precio_GasoilA:{l:'Gasoleo A'},Precio_98E5:{l:'Gasolina 98 E5'},Precio_GasoilPremium:{l:'Gasoleo Premium'},Precio_GasoilB:{l:'Gasoleo B'},Precio_95E10:{l:'Gasolina 95 E10'},Precio_98E10:{l:'Gasolina 98 E10'}};
+const PF=[['Precio_95E5','95 E5'],['Precio_GasoilA','Gasoleo A'],['Precio_98E5','98 E5'],['Precio_GasoilPremium','G.Premium'],['Precio_GasoilB','Gasoleo B'],['Precio_98E10','98 E10']];
+let gd=null,fuel='Precio_95E5',gAvg=0,gMin=0,gMax=0,userLL=null,userMk=null,activeBrand=null,ml=null;
 
-        // --- FUNCIONES DE GUARDADO/CARGA DE ESTADO ---
+// LOADER
+const lb=document.getElementById('l-bar');let lp=0;
+const lt=setInterval(()=>{lp=Math.min(lp+Math.random()*13,83);lb.style.width=lp+'%';},160);
+function done(){clearInterval(lt);lb.style.width='100%';setTimeout(()=>{const e=document.getElementById('loader');e.classList.add('out');setTimeout(()=>e.remove(),520);},320);}
 
-        function saveMapState() {
-            // Guarda el zoom y la posición central
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            
-            const viewState = {
-                lat: center.lat,
-                lng: center.lng,
-                zoom: zoom
-            };
-            localStorage.setItem(LAST_VIEW_KEY, JSON.stringify(viewState));
+// STATE
+function loadSt(){
+  let v={lat:40.4168,lng:-3.7038,zoom:6},f='Precio_95E5';
+  try{const sv=localStorage.getItem(SK_V);if(sv){const p=JSON.parse(sv);if(p&&typeof p.lat==='number')v=p;}
+  const sf=localStorage.getItem(SK_F);if(sf&&FM[sf])f=sf;}catch(e){}
+  return{v,f};
+}
+const ist=loadSt();fuel=ist.f;
 
-            // Guarda el carburante seleccionado
-            const selectedFuel = document.getElementById('carburante-select').value;
-            localStorage.setItem(LAST_FUEL_KEY, selectedFuel);
-        }
+// MAP
+const map=L.map('map',{zoomControl:false}).setView([ist.v.lat,ist.v.lng],ist.v.zoom);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'}).addTo(map);
+ml=L.markerClusterGroup({maxClusterRadius:46,showCoverageOnHover:false,disableClusteringAtZoom:15,spiderfyOnMaxZoom:true,
+  iconCreateFunction(c){const n=c.getChildCount();const sz=n<10?32:n<50?38:44;
+    return L.divIcon({html:'<div class="fcluster" style="width:'+sz+'px;height:'+sz+'px;font-size:'+(sz<38?12:13)+'px">'+n+'</div>',className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});}
+});
+map.addLayer(ml);
+function saveSt(){const c=map.getCenter();localStorage.setItem(SK_V,JSON.stringify({lat:c.lat,lng:c.lng,zoom:map.getZoom()}));localStorage.setItem(SK_F,fuel);}
+map.on('moveend',()=>{saveSt();updateStats();});
+map.on('zoomend',()=>{saveSt();render();updateZH();});
 
-        function loadMapState() {
-            // Valores por defecto
-            let initialView = {
-                lat: 40.416775, // Centro de España (Madrid)
-                lng: -3.703790,
-                zoom: 6         // Zoom a nivel de país
-            };
-            let initialFuel = 'Precio_95E5'; 
+// FETCH
+fetch('gasolineras.geojson')
+  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(data=>{
+    gd=data;calcG(fuel);calcAvgs();buildChips();render();updateStats();updateZH();syncUI(fuel);
+    const now=new Date();
+    document.getElementById('h-time').textContent='Hoy \u00b7 '+now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('h-total').textContent=gd.features.length.toLocaleString('es-ES');
+    done();
+  })
+  .catch(err=>{console.error(err);document.getElementById('l-sub').textContent='Error cargando datos. Ejecuta data_processor.py primero.';lb.style.background='var(--red)';lb.style.width='100%';});
 
-            // 1. Cargar posición y zoom desde localStorage
-            const storedView = localStorage.getItem(LAST_VIEW_KEY);
-            if (storedView) {
-                try {
-                    const view = JSON.parse(storedView);
-                    // Validación simple
-                    if (view && typeof view.lat === 'number') {
-                        initialView = view;
-                    }
-                } catch (e) {
-                    console.error("Error al cargar estado de vista:", e);
-                }
-            }
+// STATS
+function calcG(k){
+  if(!gd)return;const ps=gd.features.map(f=>f.properties[k]).filter(p=>p!=null);
+  if(!ps.length)return;gMin=Math.min(...ps);gMax=Math.max(...ps);gAvg=ps.reduce((a,b)=>a+b,0)/ps.length;
+  document.getElementById('leg-lo').textContent='Barato (\u2264 '+(gAvg*.97).toFixed(3)+' \u20ac)';
+  document.getElementById('leg-hi').textContent='Caro (\u2265 '+(gAvg*1.03).toFixed(3)+' \u20ac)';
+  document.getElementById('h-avg').textContent=gAvg.toFixed(3)+' \u20ac';
+}
+function calcAvgs(){
+  if(!gd)return;Object.keys(FM).forEach(k=>{const ps=gd.features.map(f=>f.properties[k]).filter(p=>p!=null);
+    if(!ps.length)return;const avg=ps.reduce((a,b)=>a+b,0)/ps.length;const el=document.getElementById('fav-'+k);if(el)el.textContent=avg.toFixed(3)+'\u20ac';});
+}
+function updateStats(){
+  if(!gd)return;const bounds=map.getBounds();
+  let vis=gd.features.filter(f=>{const c=f.geometry.coordinates;return bounds.contains([c[1],c[0]]);});
+  if(activeBrand)vis=vis.filter(f=>(f.properties.Rotulo||'').toUpperCase()===activeBrand);
+  const ps=vis.map(f=>f.properties[fuel]).filter(p=>p!=null);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  if(!ps.length){['s-min','s-max','s-avg','s-cnt','s-save','m-min','m-avg','m-max','m-cnt'].forEach(id=>set(id,'\u2013'));return;}
+  const mn=Math.min(...ps),mx=Math.max(...ps),av=ps.reduce((a,b)=>a+b,0)/ps.length;
+  const mnF=vis.find(f=>f.properties[fuel]===mn),mxF=vis.find(f=>f.properties[fuel]===mx);
+  set('s-min',mn.toFixed(3)+' \u20ac');set('s-min-n',(mnF?.properties.Rotulo||'').slice(0,22));
+  set('s-max',mx.toFixed(3)+' \u20ac');set('s-max-n',(mxF?.properties.Rotulo||'').slice(0,22));
+  set('s-avg',av.toFixed(3)+' \u20ac');set('s-cnt',ps.length.toLocaleString('es-ES'));
+  set('s-save',((mx-mn)*50).toFixed(2)+' \u20ac');
+  set('m-min',mn.toFixed(3));set('m-avg',av.toFixed(3));set('m-max',mx.toFixed(3));set('m-cnt',ps.length.toLocaleString('es-ES'));
+}
+function mkCls(p){if(p==null)return'mk-nd';const d=(p-gAvg)/gAvg;if(d<=-.03)return'mk-lo';if(d>=.03)return'mk-hi';return'mk-mid';}
 
-            // 2. Cargar carburante desde localStorage
-            const storedFuel = localStorage.getItem(LAST_FUEL_KEY);
-            if (storedFuel) {
-                initialFuel = storedFuel;
-            }
+// RENDER
+function render(){
+  ml.clearLayers();if(!gd)return;
+  let feats=gd.features;if(activeBrand)feats=feats.filter(f=>(f.properties.Rotulo||'').toUpperCase()===activeBrand);
+  feats.forEach(feat=>{
+    const c=feat.geometry.coordinates,ll=[c[1],c[0]],p=feat.properties,pr=p[fuel];
+    const cls=mkCls(pr),lbl=pr!=null?pr.toFixed(3)+' \u20ac':'N/D';
+    const icon=L.divIcon({className:'mk '+cls,html:lbl,iconSize:null,iconAnchor:[38,13]});
+    const mk=L.marker(ll,{icon});mk.bindPopup(buildPop(p),{maxWidth:280});ml.addLayer(mk);
+  });
+}
 
-            return { view: initialView, fuel: initialFuel };
-        }
-        
-        // ---------------------------------------------
-        
-        // Cargar estado guardado al inicio
-        const storedState = loadMapState();
+// POPUP
+function buildPop(p){
+  const rows=PF.map(([k,n])=>{
+    const v=p[k];let vc='',vt='N/D',nc='';
+    if(v!=null){vt=v.toFixed(3)+' \u20ac/L';const d=(v-gAvg)/gAvg;if(d<=-.03)vc='good';else if(d>=.03)vc='bad';}else nc='nd';
+    return '<div class="ppr'+(k===fuel?' sel':'')+'"><span class="ppr-l">'+n+'</span><span class="ppr-v '+vc+' '+nc+'">'+vt+'</span></div>';
+  }).join('');
+  return '<div class="pu"><div class="pu-hdr"><div class="pu-ico">\u26fd</div><div><div class="pu-name">'+(p.Rotulo||'Sin nombre')+'</div><div class="pu-addr">'+(p.Direccion||'')+'</div></div></div><div class="pu-rows">'+rows+'</div></div>';
+}
 
-        // 1. Inicializar el mapa con el estado guardado
-        const map = L.map('mapid').setView([storedState.view.lat, storedState.view.lng], storedState.view.zoom);
+// FUEL
+function syncUI(k){document.querySelectorAll('.fbtn,.mpill').forEach(b=>b.classList.toggle('on',b.dataset.k===k));}
+function applyFuel(k){fuel=k;syncUI(k);calcG(k);render();updateStats();saveSt();updateNear();}
+document.querySelectorAll('.fbtn,.mpill').forEach(b=>b.addEventListener('click',()=>applyFuel(b.dataset.k)));
+setTimeout(()=>applyFuel(fuel),60);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Datos: <a href="https://sedeaplicaciones.minetur.gob.es/">Minetur</a>'
-        }).addTo(map);
+// ZOOM HINT
+function updateZH(){document.getElementById('zhint').style.opacity=map.getZoom()>=MZ?'0':'1';}
 
-        // 2. Función para generar el contenido del pop-up (sin cambios)
-        function getPopupContent(properties) {
-             let popupContent = `
-                <h3>${properties.Rotulo}</h3>
-                <strong>Dirección:</strong> ${properties.Direccion}<br><hr>
-            `;
-            
-            const readableNames = {
-                "Precio_95E5": "Gasolina 95 E5",
-                "Precio_GasoilA": "Gasóleo A",
-                "Precio_98E5": "Gasolina 98 E5",
-                "Precio_GasoilPremium": "Gasóleo Premium",
-                "Precio_GasoilB": "Gasóleo B",
-            };
-            
-            for (const key in readableNames) {
-                const p = properties[key];
-                const priceText = (p !== null && p !== undefined) ? `${p.toFixed(3)} €/L` : 'N/D';
-                popupContent += `<strong>${readableNames[key]}:</strong> ${priceText}<br>`;
-            }
-            return popupContent;
-        }
+// SEARCH
+const sinp=document.getElementById('s-inp'),sdrop=document.getElementById('s-drop'),sclr=document.getElementById('s-clr');
+sinp.addEventListener('input',function(){
+  const q=this.value.trim().toLowerCase();sclr.style.display=q?'block':'none';
+  if(!q||!gd||q.length<2){sdrop.style.display='none';return;}
+  const ms=gd.features.filter(f=>{const r=(f.properties.Rotulo||'').toLowerCase(),d=(f.properties.Direccion||'').toLowerCase();return r.includes(q)||d.includes(q);}).slice(0,10);
+  if(!ms.length){sdrop.style.display='none';return;}
+  sdrop.innerHTML=ms.map(f=>{const p=f.properties,pr=p[fuel],c=f.geometry.coordinates;
+    return '<div class="sdi" data-lat="'+c[1]+'" data-lng="'+c[0]+'"><span class="sdi-ico">\u26fd</span><div class="sdi-body"><div class="sdi-name">'+(p.Rotulo||'Sin nombre')+'</div><div class="sdi-addr">'+(p.Direccion||'')+'</div></div><span class="sdi-price'+(pr==null?' nd':'')+'">'+  (pr!=null?pr.toFixed(3)+' \u20ac':'N/D')+'</span></div>';}).join('');
+  sdrop.style.display='block';
+  sdrop.querySelectorAll('.sdi').forEach(el=>el.addEventListener('click',()=>{map.setView([+el.dataset.lat,+el.dataset.lng],16);sdrop.style.display='none';sinp.value='';sclr.style.display='none';}));
+});
+sclr.addEventListener('click',()=>{sinp.value='';sclr.style.display='none';sdrop.style.display='none';sinp.focus();});
+document.addEventListener('click',e=>{if(!e.target.closest('#hdr-search')&&!e.target.closest('#s-drop'))sdrop.style.display='none';});
 
+// GEO
+function hav(la1,lo1,la2,lo2){const R=6371,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function locate(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLL=[pos.coords.latitude,pos.coords.longitude];
+    if(userMk)map.removeLayer(userMk);
+    userMk=L.marker(userLL,{icon:L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 0 0 5px rgba(10,132,255,.25),0 4px 14px rgba(0,0,0,.5)"></div>',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
+    map.setView(userLL,13);updateNear();
+    document.getElementById('loc-btn').innerHTML='<svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg> Ubicaci\u00f3n activa \u2713';
+  },()=>alert('No se pudo obtener la ubicaci\u00f3n.'));
+}
+function updateNear(){
+  if(!userLL||!gd)return;
+  const nearby=gd.features.filter(f=>f.properties[fuel]!=null&&hav(userLL[0],userLL[1],f.geometry.coordinates[1],f.geometry.coordinates[0])<=15).map(f=>({...f,_d:hav(userLL[0],userLL[1],f.geometry.coordinates[1],f.geometry.coordinates[0])})).sort((a,b)=>a.properties[fuel]-b.properties[fuel]).slice(0,5);
+  const nl=document.getElementById('nlist');
+  if(!nearby.length){nl.innerHTML='<div style="font-size:12px;color:var(--t3);text-align:center;padding:8px">Sin estaciones en 15 km con datos</div>';return;}
+  const md=['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49','4\u00ba','5\u00ba'];
+  nl.innerHTML=nearby.map((f,i)=>{const pr=f.properties[fuel],c=f.geometry.coordinates;return '<div class="nitem" data-lat="'+c[1]+'" data-lng="'+c[0]+'"><span class="nrank">'+md[i]+'</span><span class="nname">'+(f.properties.Rotulo||'Desconocida')+'</span><span class="ndist">'+f._d.toFixed(1)+' km</span><span class="nprice">'+pr.toFixed(3)+' \u20ac</span></div>';}).join('');
+  nl.querySelectorAll('.nitem').forEach(el=>el.addEventListener('click',()=>map.setView([+el.dataset.lat,+el.dataset.lng],16)));
+}
+document.getElementById('loc-btn').addEventListener('click',locate);
+document.getElementById('b-loc').addEventListener('click',locate);
 
-        // 3. Función para crear el marcador (sin cambios)
-        function createPriceMarker(feature, latlng, selectedPriceKey) {
-            const properties = feature.properties;
-            const precio = properties[selectedPriceKey]; 
-            
-            let marker;
-            let popupContent = getPopupContent(properties);
+// BRANDS
+function buildChips(){
+  if(!gd)return;const el=document.getElementById('bchips');
+  el.innerHTML='<button class="bchip all on" data-b="">Todas</button>'+BRANDS.map(b=>'<button class="bchip" data-b="'+b+'">'+b+'</button>').join('');
+  el.querySelectorAll('.bchip').forEach(c=>c.addEventListener('click',()=>{
+    activeBrand=c.dataset.b||null;el.querySelectorAll('.bchip').forEach(x=>x.classList.remove('on'));c.classList.add('on');render();updateStats();
+  }));
+}
 
-
-            if (map.getZoom() >= MIN_ZOOM_LEVEL_FOR_PRICE) {
-                
-                let displayPrice;
-                let markerClass = 'price-marker';
-                
-                if (precio !== null && precio !== undefined) {
-                    displayPrice = precio.toFixed(3) + ' €';
-                } else {
-                    displayPrice = 'N/D';
-                    markerClass += ' no-data'; 
-                }
-                
-                const htmlIcon = L.divIcon({
-                    className: markerClass,
-                    html: `<div>${displayPrice}</div>`,
-                    iconSize: [80, 25],
-                    iconAnchor: [40, 12]
-                });
-
-                marker = L.marker(latlng, { icon: htmlIcon });
-
-            } else {
-                marker = L.marker(latlng);
-            }
-
-            marker.bindPopup(popupContent);
-            return marker;
-        }
-
-        // 4. Función principal para actualizar el mapa (sin cambios)
-        function updateMap(selectedPriceKey) {
-            markers.clearLayers();
-            
-            if (geoJsonData) {
-                L.geoJSON(geoJsonData, {
-                    pointToLayer: function (feature, latlng) {
-                        return createPriceMarker(feature, latlng, selectedPriceKey);
-                    }
-                }).eachLayer(function (layer) {
-                    markers.addLayer(layer);
-                });
-
-                if (!map.hasLayer(markers)) {
-                     map.addLayer(markers);
-                }
-            }
-        }
-
-        // 5. Carga inicial de datos GeoJSON (AJUSTADO para usar el carburante guardado)
-        fetch('gasolineras.geojson')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}. ¿Has ejecutado 'data_processor.py'?`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                geoJsonData = data;
-                
-                // Aplicar el carburante guardado al selector
-                const fuelSelect = document.getElementById('carburante-select');
-                fuelSelect.value = storedState.fuel;
-                
-                // Inicializar el mapa con el carburante guardado
-                updateMap(storedState.fuel);
-            })
-            .catch(error => {
-                console.error('Error al cargar los datos:', error);
-                alert('No se pudieron cargar los datos de las gasolineras. Asegúrate de ejecutar el script Python primero.');
-            });
-
-        // 6. Escuchar eventos (AJUSTADO para guardar estado)
-        
-        // Guardar estado al cambiar el carburante
-        document.getElementById('carburante-select').addEventListener('change', function(e) {
-            const selectedKey = e.target.value;
-            updateMap(selectedKey);
-            saveMapState(); // Guarda la nueva selección de carburante
-        });
-
-        // Guardar estado al mover o hacer zoom en el mapa
-        map.on('moveend', saveMapState); // Guarda la nueva posición
-        
-        map.on('zoomend', function () {
-            if (geoJsonData) {
-                const selectedKey = document.getElementById('carburante-select').value;
-                updateMap(selectedKey); // Actualiza los marcadores por el cambio de zoom
-            }
-            saveMapState(); // Guarda el nuevo nivel de zoom
-        });
-    </script>
+// CONTROLS
+document.getElementById('b-zi').addEventListener('click',()=>map.zoomIn());
+document.getElementById('b-zo').addEventListener('click',()=>map.zoomOut());
+document.getElementById('b-fs').addEventListener('click',()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();});
+</script>
 </body>
 </html>
