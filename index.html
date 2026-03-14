@@ -140,6 +140,11 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
 #panel::-webkit-scrollbar { display:none; }
 #panel > * { pointer-events:all; }
 @media(max-width:640px){ #panel{display:none;} }
+@media(min-width:641px) and (max-width:900px){
+  :root { --panel-w: 270px; }
+  .fbtn { font-size:12px; padding:8px 10px; }
+  .card { padding:12px 13px; }
+}
 
 .card { border-radius:var(--r-lg); padding:15px 16px; animation:slideIn .44s cubic-bezier(.34,1.4,.64,1) both; }
 @keyframes slideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
@@ -199,6 +204,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
 
 /* RIGHT CONTROLS */
 #rc { position:fixed; top:calc(var(--hdr-h)+10px); right:10px; z-index:900; display:flex; flex-direction:column; gap:7px; animation:fadeIn .4s ease .3s both; }
+@media(max-width:640px){#rc{display:none;}}
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 .cb { width:42px; height:42px; border-radius:13px; background:var(--g2); border:1px solid rgba(255,255,255,.20); backdrop-filter:var(--blur-sm); -webkit-backdrop-filter:var(--blur-sm); box-shadow:var(--sh1); color:var(--t1); display:flex; align-items:center; justify-content:center; font-size:18px; transition:all .18s; }
 .cb:hover { background:var(--g3); transform:scale(1.07); box-shadow:var(--sh2); }
@@ -233,22 +239,26 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
 .ppr-v.good{color:var(--green)} .ppr-v.bad{color:var(--red)} .ppr-v.nd{color:var(--t4);font-size:11px;font-family:'DM Sans',sans-serif}
 
 /* LEGEND */
-#legend { position:fixed; bottom:20px; right:10px; z-index:900; border-radius:var(--r-sm); padding:11px 14px; animation:fadeIn .5s ease .5s both; }
+#legend { position:fixed; bottom:20px; right:10px; z-index:900; border-radius:var(--r-sm); padding:11px 14px; animation:fadeIn .5s ease .5s both; max-width:160px; }
 #legend h5 { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); margin-bottom:8px; }
 .lrow { display:flex; align-items:center; gap:7px; font-size:10.5px; color:var(--t2); margin-bottom:5px; }
 .lrow:last-child{margin-bottom:0}
 .lpip { width:22px; height:9px; border-radius:3px; flex-shrink:0; }
 .lpip.lo{background:linear-gradient(90deg,#0d4018,#17702a)} .lpip.mid{background:linear-gradient(90deg,#09306a,#0958b8)} .lpip.hi{background:linear-gradient(90deg,#6e1410,#b82e20)}
-@media(max-width:640px){#legend{bottom:108px}}
+@media(max-width:640px){#legend{bottom:calc(var(--mob-h,110px) + 12px);right:10px;}}
 
 /* ZOOM HINT */
-#zhint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:900; pointer-events:none; padding:8px 20px; border-radius:28px; background:rgba(0,0,0,.56); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.11); font-size:12px; font-weight:600; color:var(--t2); white-space:nowrap; transition:opacity .4s; }
-@media(max-width:640px){#zhint{bottom:115px}}
+#zhint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:900; pointer-events:none; padding:8px 20px; border-radius:28px; background:rgba(0,0,0,.56); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.11); font-size:12px; font-weight:600; color:var(--t2); white-space:nowrap; transition:opacity .4s; max-width:calc(100vw - 200px); text-align:center; }
+@media(max-width:640px){#zhint{bottom:calc(var(--mob-h,110px) + 14px);}}
 
 /* MOBILE BAR */
-#mbar { display:none; position:fixed; bottom:0; left:0; right:0; z-index:900; background:rgba(6,12,26,.83); backdrop-filter:var(--blur-lg); -webkit-backdrop-filter:var(--blur-lg); border-top:1px solid rgba(255,255,255,.08); padding:10px 12px max(12px,env(safe-area-inset-bottom)); flex-direction:column; gap:8px; animation:slideUp .4s cubic-bezier(.34,1.2,.64,1) .15s both; }
+#mbar { display:none; position:fixed; bottom:0; left:0; right:0; z-index:900; background:rgba(6,12,26,.83); backdrop-filter:var(--blur-lg); -webkit-backdrop-filter:var(--blur-lg); border-top:1px solid rgba(255,255,255,.08); padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px)); flex-direction:column; gap:8px; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 @media(max-width:640px){#mbar{display:flex}}
+#mctrl{display:flex;gap:7px;align-items:center;}
+.mcb{flex:1;padding:9px 6px;border-radius:var(--r-sm);background:var(--g1);border:1px solid rgba(255,255,255,.12);color:var(--t1);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .18s;}
+.mcb:hover{background:var(--g2);}
+.mcb.blue{background:rgba(10,132,255,.16);border-color:rgba(10,132,255,.35);color:rgba(160,200,255,.9);}
 #mfuels { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 #mfuels::-webkit-scrollbar{display:none}
 .mpill { flex-shrink:0; padding:7px 14px; border-radius:20px; background:var(--g1); border:1px solid rgba(255,255,255,.11); color:var(--t2); font-size:12px; font-weight:700; white-space:nowrap; transition:all .15s; }
@@ -370,6 +380,14 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
     <div class="msc"><div class="msc-l">Media</div><div class="msc-v" id="m-avg">&#8211;</div></div>
     <div class="msc"><div class="msc-l">M&aacute;x</div><div class="msc-v" id="m-max">&#8211;</div></div>
     <div class="msc"><div class="msc-l">Total</div><div class="msc-v" id="m-cnt">&#8211;</div></div>
+  </div>
+  <div id="mctrl">
+    <button class="mcb" id="mb-zi">+ Acercar</button>
+    <button class="mcb" id="mb-zo">&#8722; Alejar</button>
+    <button class="mcb blue" id="mb-loc">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      Ubicaci&oacute;n
+    </button>
   </div>
 </div>
 
@@ -518,6 +536,11 @@ function updateNear(){
 }
 document.getElementById('loc-btn').addEventListener('click',locate);
 document.getElementById('b-loc').addEventListener('click',locate);
+// Mobile bar controls
+const mzi=document.getElementById('mb-zi'),mzo=document.getElementById('mb-zo'),mloc=document.getElementById('mb-loc');
+if(mzi)mzi.addEventListener('click',()=>map.zoomIn());
+if(mzo)mzo.addEventListener('click',()=>map.zoomOut());
+if(mloc)mloc.addEventListener('click',locate);
 
 // BRANDS
 function buildChips(){
@@ -532,6 +555,17 @@ function buildChips(){
 document.getElementById('b-zi').addEventListener('click',()=>map.zoomIn());
 document.getElementById('b-zo').addEventListener('click',()=>map.zoomOut());
 document.getElementById('b-fs').addEventListener('click',()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.();});
+
+// Update --mob-h CSS variable so other elements can position above mobile bar
+function updateMobH(){
+  const mbar = document.getElementById('mbar');
+  if(!mbar) return;
+  const h = mbar.offsetHeight;
+  document.documentElement.style.setProperty('--mob-h', h + 'px');
+}
+window.addEventListener('resize', updateMobH);
+// Run after layout
+requestAnimationFrame(()=>{ updateMobH(); requestAnimationFrame(updateMobH); });
 </script>
 </body>
 </html>
